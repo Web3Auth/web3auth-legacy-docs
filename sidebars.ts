@@ -1,16 +1,5 @@
 import type { SidebarsConfig } from "@docusaurus/plugin-content-docs";
 
-import {
-  web,
-  android,
-  ios,
-  reactnative,
-  flutter,
-  unity,
-  unreal,
-  js,
-} from "./src/common/SDKOptions";
-
 const sidebars: SidebarsConfig = {
   docs: [
     {
@@ -51,16 +40,6 @@ const sidebars: SidebarsConfig = {
         },
         {
           type: "link",
-          label: "Support Forum Web",
-          href: "https://web3auth.io/community/c/help-core-kit/core-kit-tkey/8",
-        },
-        {
-          type: "link",
-          label: "Support Forum React Native",
-          href: "https://web3auth.io/community/c/help-core-kit/tkey-react-native-sdk/29",
-        },
-        {
-          type: "link",
           label: "Release Notes",
           href: "https://github.com/tkey/tkey/releases",
         },
@@ -93,11 +72,6 @@ const sidebars: SidebarsConfig = {
         },
         {
           type: "link",
-          label: "Support Forum",
-          href: "https://web3auth.io/community/c/help-core-kit/core-kit-tkey-ios/27",
-        },
-        {
-          type: "link",
           label: "Release Notes",
           href: "https://github.com/tkey/tkey-ios/releases",
         },
@@ -122,11 +96,6 @@ const sidebars: SidebarsConfig = {
             "tkey-android/modules/share-serialization",
             "tkey-android/modules/share-transfer",
           ],
-        },
-        {
-          type: "link",
-          label: "Support Forum",
-          href: "https://web3auth.io/community/c/help-core-kit/tkey-android/28",
         },
         {
           type: "link",
