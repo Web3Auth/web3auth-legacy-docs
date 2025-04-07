@@ -17,7 +17,7 @@ const githubRepo = "web3auth-docs";
 const githubOrgUrl = `https://github.com/${githubOrg}`;
 const githubRepoUrl = `${githubOrgUrl}/${githubRepo}`;
 const githubEditUrl = `${githubRepoUrl}/edit/master`;
-const baseUrl = process.env.REACT_APP_BASE_URL || "/docs/";
+const baseUrl = process.env.REACT_APP_BASE_URL || "/";
 
 const config: Config = {
   title: "Documentation | Web3Auth",
