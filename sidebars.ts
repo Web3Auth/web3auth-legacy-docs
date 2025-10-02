@@ -116,6 +116,72 @@ const sidebars: SidebarsConfig = {
         "providers/xrpl",
       ],
     },
+    "tkey-ios-mpc",
+    {
+      type: "category",
+      label: "MPC Core Kit JS",
+      items: [
+        "mpc-core-kit-js/mpc-core-kit-js",
+        "mpc-core-kit-js/install",
+        "mpc-core-kit-js/initialize",
+        {
+          type: "category",
+          label: "Authentication",
+          items: [
+            "mpc-core-kit-js/authentication/authentication",
+            "mpc-core-kit-js/authentication/login-jwt",
+            "mpc-core-kit-js/authentication/login-oauth",
+          ],
+        },
+        "mpc-core-kit-js/signing",
+        "mpc-core-kit-js/usage",
+        {
+          type: "category",
+          label: "Providers",
+          items: ["mpc-core-kit-js/providers/providers", "mpc-core-kit-js/providers/evm"],
+        },
+        {
+          type: "link",
+          label: "Release Notes",
+          href: "https://github.com/Web3Auth/mpc-core-kit/releases",
+        },
+        {
+          type: "category",
+          label: "Migration Guides",
+          items: ["mpc-core-kit-js/mpc-core-kit-web-v2-to-v3"],
+        },
+      ],
+    },
+    {
+      type: "category",
+      label: "MPC Core Kit React Native",
+      items: [
+        "mpc-core-kit-react-native/mpc-core-kit-react-native",
+        "mpc-core-kit-react-native/install",
+        "mpc-core-kit-react-native/initialize",
+        "mpc-core-kit-react-native/authentication",
+        "mpc-core-kit-react-native/signing",
+        "mpc-core-kit-react-native/usage",
+        {
+          type: "category",
+          label: "Providers",
+          items: [
+            "mpc-core-kit-react-native/providers/providers",
+            "mpc-core-kit-react-native/providers/evm",
+          ],
+        },
+        {
+          type: "link",
+          label: "Release Notes",
+          href: "https://github.com/Web3Auth/react-native-mpc-core-kit/releases",
+        },
+        {
+          type: "category",
+          label: "Migration Guides",
+          items: ["mpc-core-kit-react-native/mpc-core-kit-react-native-migration"],
+        },
+      ],
+    },
   ],
 };
 
