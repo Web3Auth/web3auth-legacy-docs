@@ -83,11 +83,6 @@ These reconstruct the private key. Not recommended unless the user explicitly wa
 
 | Method Name                       | Description                                                                                   |
 | --------------------------------- | --------------------------------------------------------------------------------------------- |
-| [setSecurityQuestion](#set-security-question) | Creates a security question factor for the user's account.                                    |
-| [changeSecurityQuestion](#change-security-question) | Changes the security question and answer for the account.                                      |
-| [deleteSecurityQuestion](#delete-security-question-share) | Deletes the security question factor.                                                         |
-| [recoverFactor](#get-factor-key-from-security-question) | Recovers the security question factor from the answer.                                        |
-| [getQuestion](#get-security-question-for-users-account) | Retrieves the security question for the account.                                               |
 | [mnemonicToKey](#mnemonic-to-key)         | This method helps you to convert 24 word mnemonic(seed phrase) into corresponding factor key. |
 | [keyToMnemonic](#key-to-mnemonic)         | This method helps you to convert the factor key to corresponding 24 mnemonic.                 |
 | [generateFactorKey](#generate-factor-key) | Random factor `{ private: BN, pub: Point }`.                                                  |
@@ -108,8 +103,8 @@ details.
 
 This method can be used to input the factor key when `status === REQUIRED_SHARE`. For example, if
 user's device factor is not present, this method can be used to input the back up factor key, and
-recover the account. Source the hex from `getDeviceFactor()`, `mnemonicToKey`, or
-`TssSecurityQuestion.recoverFactor`.
+recover the account. Source the hex from `getDeviceFactor()`, `mnemonicToKey`, or another securely
+stored factor key.
 If the factor key is valid, the SDK reconstructs tKey and creates a session.
 
 The factor is always checked against metadata `factorEncs` before it is accepted. Please make sure
@@ -367,7 +362,8 @@ To delete a factor you can use the `deleteFactor` method. This method helps you 
 respective to the factor pub provided for the user's account. You cannot delete the last factor or
 the one currently in use. Pass `factorKey` to also delete its metadata backup.
 
-You can get the factor pubs with `getTssFactorPub()`, or from `getKeyDetails().shareDescriptions`.
+You can get the factor pubs with `await getTssFactorPub()`, or from
+`(await getKeyDetails()).shareDescriptions`.
 It will throw an error if you try to delete the factor that is currently active within the state of
 the SDK.
 
@@ -380,7 +376,7 @@ deleting the current active factor.
 import { factorKeyCurve } from "@web3auth/react-native-mpc-core-kit";
 import { Point } from "@tkey/common-types";
 
-const pubs = coreKitInstance.getTssFactorPub();
+const pubs = await coreKitInstance.getTssFactorPub();
 const pub = Point.fromSEC1(factorKeyCurve, pubs[i]);
 await coreKitInstance.deleteFactor(pub);
 // Required when the instance was created with manualSync: true
@@ -392,7 +388,7 @@ await coreKitInstance.commitChanges();
 Returns compressed hex public keys of all factors. Use these with `deleteFactor`.
 
 ```tsx
-const pubs = coreKitInstance.getTssFactorPub();
+const pubs = await coreKitInstance.getTssFactorPub();
 ```
 
 ### Get Current Factor Key
@@ -472,7 +468,7 @@ const pubKey = await coreKitInstance.getPubKey();
 Same public key as a tKey `Point`.
 
 ```ts
-const pubKeyPoint = coreKitInstance.getPubKeyPoint();
+const pubKeyPoint = await coreKitInstance.getPubKeyPoint();
 ```
 
 ### Get Ed25519 Public Key
@@ -554,89 +550,13 @@ const keyHex = await coreKitInstance._UNSAFE_recoverTssKey([deviceHex, recoveryH
 
 ## Security Question
 
-The `TssSecurityQuestion` helper manages a security question factor. Import it from
-`@web3auth/mpc-core-kit`; the React Native SDK reuses this helper for security question recovery.
+Security Question management and recovery are not currently supported through the React Native
+Core Kit facade. The JavaScript `TssSecurityQuestion` helper requires access to
+`mpcCoreKit.tKey`, which `Web3AuthMPCCoreKitRN` does not expose.
 
-:::note
-
-The user must meet the required factor threshold before creating, changing, or deleting a security
-question factor. If `manualSync` is enabled, call `commitChanges()` after each successful change.
-
-:::
-
-### Set Security Question
-
-Creates a security question recovery factor for the user's account.
-
-```tsx
-import { TssSecurityQuestion, TssShareType } from "@web3auth/mpc-core-kit";
-
-const securityQuestion = new TssSecurityQuestion();
-
-await securityQuestion.setSecurityQuestion({
-  mpcCoreKit: coreKitInstance,
-  question: "YOUR_QUESTION",
-  answer: "YOUR_ANSWER",
-  shareType: TssShareType.RECOVERY,
-});
-```
-
-### Change Security Question
-
-Changes the security question and answer. The current answer is required.
-
-```tsx
-import { TssSecurityQuestion } from "@web3auth/mpc-core-kit";
-
-const securityQuestion = new TssSecurityQuestion();
-
-await securityQuestion.changeSecurityQuestion({
-  mpcCoreKit: coreKitInstance,
-  newQuestion: "NEW_QUESTION",
-  newAnswer: "NEW_ANSWER",
-  answer: "PREVIOUS_ANSWER",
-});
-```
-
-### Delete Security Question Share
-
-Deletes the security question factor. The user must be logged in with the required factor threshold.
-
-```tsx
-import { TssSecurityQuestion } from "@web3auth/mpc-core-kit";
-
-const securityQuestion = new TssSecurityQuestion();
-
-await securityQuestion.deleteSecurityQuestion(coreKitInstance);
-```
-
-### Get Factor Key from Security Question
-
-When `coreKitInstance.status === COREKIT_STATUS.REQUIRED_SHARE`, recover the factor key with the
-security question answer and pass it to `inputFactorKey`.
-
-```tsx
-import { BN } from "bn.js";
-import { TssSecurityQuestion } from "@web3auth/mpc-core-kit";
-
-const securityQuestion = new TssSecurityQuestion();
-const factorKeyHex = await securityQuestion.recoverFactor(coreKitInstance, "YOUR_ANSWER");
-
-if (factorKeyHex) {
-  await coreKitInstance.inputFactorKey(new BN(factorKeyHex, "hex"));
-}
-```
-
-### Get Security Question for User's Account
-
-Retrieves the security question after the user has completed authentication.
-
-```tsx
-import { TssSecurityQuestion } from "@web3auth/mpc-core-kit";
-
-const securityQuestion = new TssSecurityQuestion();
-const question = securityQuestion.getQuestion(coreKitInstance);
-```
+Do not pass a React Native Core Kit instance to `TssSecurityQuestion`. Use a supported factor
+workflow, such as `getDeviceFactor()` or a securely stored recovery factor, until a native
+Security Question API is available.
 
 ## Additional Helper Methods
 

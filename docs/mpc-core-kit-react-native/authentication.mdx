@@ -165,7 +165,7 @@ const jwtLoginParams: JWTLoginParams = {
 await coreKitInstance.loginWithJWT(jwtLoginParams);
 
 if (coreKitInstance.status === COREKIT_STATUS.REQUIRED_SHARE) {
-  const hex = await coreKitInstance.getDeviceFactor(); // or mnemonicToKey(...) / securityQuestion.recoverFactor(coreKitInstance, answer)
+  const hex = await coreKitInstance.getDeviceFactor(); // or use a securely stored recovery factor
   if (hex) await coreKitInstance.inputFactorKey(new BN(hex, "hex"));
 }
 ```
