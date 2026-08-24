@@ -4,6 +4,9 @@ sidebar_label: "Signing"
 description: "Web3Auth MPC Core Kit React Native SDK - Signing | Documentation - Web3Auth"
 ---
 
+import TabItem from "@theme/TabItem";
+import Tabs from "@theme/Tabs";
+
 Web3Auth's MPC Core Kit SDK supports both secp256k1 and ed25519 cryptographic curves. The secp256k1
 curve enables the retrieval of public keys and the signing of transactions on blockchains compatible
 with secp256k1, such as Bitcoin and Ethereum. Meanwhile, the ed25519 curve provides the same
@@ -225,14 +228,30 @@ const uncompressedPubKey = pubKeyPoint.toSEC1(secp256k1).subarray(1);
 #### Signing
 
 To sign the transaction for secp256k1 curve, you can use the `sign` method. The sign method supports
-both secp256k1 and ed25519 curve. Using the method dkls-lib this function will return ECDSA
-signature and using frost-lib, it will return EDDSA sginature.
+both secp256k1 and ed25519 curve. Using `TssDklsLib` this function will return ECDSA signature and
+using `TssFrostLib`, it will return EDDSA signature.
+
+`sign(data, hashed?, precompute?)` takes a `Buffer`. `hashed` defaults to `false` (the SDK hashes
+with keccak256). secp256k1 returns a 65-byte `r||s||v`. You can warm TSS with
+`precompute_secp256k1()` and pass the result into the next `sign` — it is one-shot.
+
+`setPreSigningHook` can abort signing if the hook returns `{ success: false }`.
+`makeEthereumSigner(coreKitInstance)` wraps `sign(..., true)` as `{ sign(msgHash), getPublic() }`
+for EVM providers.
 
 ```tsx
 const msg = Buffer.from("Welcome to Web3Auth");
 
-// Returns the ECDSA signature bytes.
+// TSS ECDSA (secp256k1): hashes the bytes with keccak256, then signs. Returns 65-byte r||s||v.
 const signature = await coreKitInstance.sign(msg);
+
+// Warm TSS before the user signs to reduce latency. One-shot.
+const pre = await coreKitInstance.precompute_secp256k1();
+await coreKitInstance.sign(msg, false, pre);
+
+coreKitInstance.setPreSigningHook(async ({ data, hashed }) => {
+  return { success: true };
+});
 ```
 
 ## EdDSA Signature
@@ -299,7 +318,7 @@ const coreKitInstance = new mpclib.Web3AuthMPCCoreKitRN({
   // setupProviderOnInit: false, // needed to skip the provider setup
   uxMode: "react-native",
   // focus-next-line
-  tssLib: TssFrostLib, // tss lib bridge for ECDSA
+  tssLib: TssFrostLib, // tss lib bridge for EDDSA
   manualSync: true, // This is the recommended approach
   storage: asyncStorageKey, // Add the storage property
 } as Web3AuthOptions);
@@ -335,7 +354,7 @@ const coreKitInstance = new mpclib.Web3AuthMPCCoreKitRN({
   // setupProviderOnInit: false, // needed to skip the provider setup
   uxMode: "react-native",
   // focus-next-line
-  tssLib: TssFrostLib, // tss lib bridge for ECDSA
+  tssLib: TssFrostLib, // tss lib bridge for EDDSA
   manualSync: true, // This is the recommended approach
   storage: asyncStorageKey, // Add the storage property
 } as Web3AuthOptions);
@@ -443,25 +462,13 @@ ecosystem that supports the ed25519 curve.
 To retrieve the ed25519 publicKey you can use the `getPubKeyEd25519` method in `Web3AuthMPCCoreKit`.
 
 ```tsx
-import { Web3AuthMPCCoreKit, WEB3AUTH_NETWORK } from "@web3auth/mpc-core-kit";
-import { tssLib } from "@toruslabs/tss-frost-lib";
-
-const coreKitInstance = new Web3AuthMPCCoreKit({
-  web3AuthClientId: "YOUR_CLIENT_ID",
-  web3AuthNetwork: WEB3AUTH_NETWORK.MAINNET,
-  manualSync: true, // This is the recommended approach
-  tssLib: tssLib,
-  storage: window.storage,
-});
-
 const pubKey = coreKitInstance.getPubKeyEd25519();
 ```
 
 #### Signing
 
-To sign the transaction for ed25519 curve, you can use the `sign` method. The sign method supports
-both secp256k1 and ed25519 curve. Using the method dkls-lib this function will return ECDSA
-signature and using frost-lib, it will return EDDSA sginature.
+To sign the transaction for ed25519 curve, you can use the `sign` method. Using `TssFrostLib`, this
+function returns an EdDSA signature.
 
 ```tsx
 const msg = Buffer.from("Welcome to Web3Auth");

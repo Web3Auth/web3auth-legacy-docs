@@ -12,6 +12,12 @@ To authenticate users using Single Page Application(SPA) flow, you can use the `
 method. This methods takes the `OAuthLoginParams` as a parameter, which is an object that contains
 the details of the verifier, and additional authentication parameters.
 
+`loginWithOAuth` is not available in `nodejs` or `react-native` `uxMode`. It throws if the instance
+is already logged in or rehydrated.
+
+In **redirect** mode the function returns immediately; `init()` or `handleRedirectResult()` finishes
+login. `importTssKey` and `registerExistingSFAKey` are not allowed in redirect mode.
+
 :::tip React Native
 
 While using the application in React Native, you can use the `ux_mode` as `react-native`, this helps
@@ -36,8 +42,8 @@ Please check the table below for more details.
 
 | Parameter                 | Description                                                                                                                                                                                                                                           |
 | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `importTssKey?`           | The TSS key to import an existing account.                                                                                                                                                                                                            |
-| `registerExistingSFAKey?` | Allows to import the [Single Factor Auth(SFA) SDK](/docs/sdk/mobile/sfa/react-native/) key into the MPC Core Kit SDK. Default value is `false`. Please note, once SFA Key is imported, users won't be able to access their account using the SFA SDK. |
+| `importTssKey?`           | New users only, popup mode only. The TSS key to import an existing account.                                                                                                                                                                           |
+| `registerExistingSFAKey?` | New users only, popup mode only. Convert an SFA user to TSS. Do not combine with `importTssKey`. v1 SFA users are not supported. Default value is `false`. Once the SFA key is imported, users won't be able to access their account using the SFA SDK. |
 
 ### SubVerifierDetailsParams
 
@@ -242,7 +248,8 @@ SDK/ Wallet Pregeneration API and MPC Core Kit SDK.
 :::info
 
 Please note, once the SFA Key is imported, users will no longer be able to access their account
-through the SFA SDK.
+through the SFA SDK. `importTssKey` and `registerExistingSFAKey` are not allowed in redirect mode
+and only apply to new users. Do not combine them. v1 SFA users are not supported.
 
 :::
 
@@ -618,9 +625,26 @@ ${""} `, ], { type: "text/html" }, ), ), ); } } catch (error) { console.error(er
 ## Redirect Mode
 
 If you are using the redirect mode, you don't have to use the service worker or `redirect.html`
-file. You can get login results by calling the `init()` function on the redirected page mount.
+file. `loginWithOAuth` returns immediately; finish login with `init()` (default
+`handleRedirectResult: true`) or call `handleRedirectResult()` yourself.
 
 For example, if `baseUrl` is `https://your-domain.com` and `redirectPathName` is `auth` then the
-user will be redirected to the `https://your-domain.com/auth` page after logging in where you can
-get login result by calling `init()` function on redirected page mount.
+user will be redirected to the `https://your-domain.com/auth` page after logging in. Call `init()`
+on that page — it completes the OAuth redirect when `handleRedirectResult` is `true` (the default).
+
+```tsx
+await coreKitInstance.init();
+```
+
+If you set `handleRedirectResult: false`, `init()` skips the hash. Check for `#state` or
+`#access_token` yourself, then call `handleRedirectResult()`.
+
+```tsx
+await coreKitInstance.init({ handleRedirectResult: false, rehydrate: true });
+if (
+  window.location.hash.includes("#state") ||
+  window.location.hash.includes("#access_token")
+) {
+  await coreKitInstance.handleRedirectResult();
+}
 ```
