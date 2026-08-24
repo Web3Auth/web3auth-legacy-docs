@@ -83,6 +83,11 @@ These reconstruct the private key. Not recommended unless the user explicitly wa
 
 | Method Name                       | Description                                                                                   |
 | --------------------------------- | --------------------------------------------------------------------------------------------- |
+| [setSecurityQuestion](#set-security-question) | Creates a security question factor for the user's account.                                    |
+| [changeSecurityQuestion](#change-security-question) | Changes the security question and answer for the account.                                      |
+| [deleteSecurityQuestion](#delete-security-question-share) | Deletes the security question factor.                                                         |
+| [recoverFactor](#get-factor-key-from-security-question) | Recovers the security question factor from the answer.                                        |
+| [getQuestion](#get-security-question-for-users-account) | Retrieves the security question for the account.                                               |
 | [mnemonicToKey](#mnemonic-to-key)         | This method helps you to convert 24 word mnemonic(seed phrase) into corresponding factor key. |
 | [keyToMnemonic](#key-to-mnemonic)         | This method helps you to convert the factor key to corresponding 24 mnemonic.                 |
 | [generateFactorKey](#generate-factor-key) | Random factor `{ private: BN, pub: Point }`.                                                  |
@@ -545,6 +550,92 @@ same type fails.
 
 ```tsx
 const keyHex = await coreKitInstance._UNSAFE_recoverTssKey([deviceHex, recoveryHex]);
+```
+
+## Security Question
+
+The `TssSecurityQuestion` helper manages a security question factor. Import it from
+`@web3auth/mpc-core-kit`; the React Native SDK reuses this helper for security question recovery.
+
+:::note
+
+The user must meet the required factor threshold before creating, changing, or deleting a security
+question factor. If `manualSync` is enabled, call `commitChanges()` after each successful change.
+
+:::
+
+### Set Security Question
+
+Creates a security question recovery factor for the user's account.
+
+```tsx
+import { TssSecurityQuestion, TssShareType } from "@web3auth/mpc-core-kit";
+
+const securityQuestion = new TssSecurityQuestion();
+
+await securityQuestion.setSecurityQuestion({
+  mpcCoreKit: coreKitInstance,
+  question: "YOUR_QUESTION",
+  answer: "YOUR_ANSWER",
+  shareType: TssShareType.RECOVERY,
+});
+```
+
+### Change Security Question
+
+Changes the security question and answer. The current answer is required.
+
+```tsx
+import { TssSecurityQuestion } from "@web3auth/mpc-core-kit";
+
+const securityQuestion = new TssSecurityQuestion();
+
+await securityQuestion.changeSecurityQuestion({
+  mpcCoreKit: coreKitInstance,
+  newQuestion: "NEW_QUESTION",
+  newAnswer: "NEW_ANSWER",
+  answer: "PREVIOUS_ANSWER",
+});
+```
+
+### Delete Security Question Share
+
+Deletes the security question factor. The user must be logged in with the required factor threshold.
+
+```tsx
+import { TssSecurityQuestion } from "@web3auth/mpc-core-kit";
+
+const securityQuestion = new TssSecurityQuestion();
+
+await securityQuestion.deleteSecurityQuestion(coreKitInstance);
+```
+
+### Get Factor Key from Security Question
+
+When `coreKitInstance.status === COREKIT_STATUS.REQUIRED_SHARE`, recover the factor key with the
+security question answer and pass it to `inputFactorKey`.
+
+```tsx
+import { BN } from "bn.js";
+import { TssSecurityQuestion } from "@web3auth/mpc-core-kit";
+
+const securityQuestion = new TssSecurityQuestion();
+const factorKeyHex = await securityQuestion.recoverFactor(coreKitInstance, "YOUR_ANSWER");
+
+if (factorKeyHex) {
+  await coreKitInstance.inputFactorKey(new BN(factorKeyHex, "hex"));
+}
+```
+
+### Get Security Question for User's Account
+
+Retrieves the security question after the user has completed authentication.
+
+```tsx
+import { TssSecurityQuestion } from "@web3auth/mpc-core-kit";
+
+const securityQuestion = new TssSecurityQuestion();
+const question = securityQuestion.getQuestion(coreKitInstance);
 ```
 
 ## Additional Helper Methods
