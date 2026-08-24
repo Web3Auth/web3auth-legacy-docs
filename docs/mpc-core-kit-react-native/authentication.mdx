@@ -14,6 +14,11 @@ then passed to the SDK to authenticate the user.
 As a prerequisite, before triggering the login function, you need to create a verifier for your
 login method on the [Web3Auth Dashboard](https://dashboard.web3auth.io).
 
+Call `init()` first (after the `Bridge` is ready). If `status` is already `LOGGED_IN` or
+`REQUIRED_SHARE`, do not login again — the instance was restored from a session. `loginWithJWT`
+throws if the instance is already logged in or rehydrated. When `status` is `REQUIRED_SHARE`, call
+`inputFactorKey` with a device, backup, or security-question factor.
+
 ## Creating a Verifier
 
 Since this is a Core Kit SDK, it does not provide any default authentication methods. You need to
@@ -36,7 +41,16 @@ takes the `JWTLoginParams` as a parameter, which is an object that contains the 
 verifier, and additional authentication parameters like idToken, subVerifier, etc.
 
 In JWT login flow, you'll have to manually get the idToken from the auth provider and pass it to the
-login function.
+login function. OAuth login is not available in `react-native` mode.
+
+New vs existing user is decided by whether metadata exists for that postbox key.
+
+- **New user** (no metadata): creates tKey and the first factor, then a session. The default hashed
+  (cloud) factor results in `LOGGED_IN` after one JWT. With `disableHashedFactorKey`, a device factor
+  is stored locally; you may still need `inputFactorKey`. `importTssKey` and
+  `registerExistingSFAKey` only work for new users.
+- **Existing user** (metadata exists): hashed factor still valid → `LOGGED_IN`. MFA enabled or
+  `disableHashedFactorKey` → `REQUIRED_SHARE` until `inputFactorKey`.
 
 ## Parameters
 
@@ -59,7 +73,8 @@ login function.
 | `extraVerifierParams?`   | Extra verifier params in case of a WebAuthn verifier type.                                                                                                                                                                                                                                                                                                                                                                 |
 | `additionalParams?`      | Any additional parameter (key-value pair) you'd like to pass to the login function.                                                                                                                                                                                                                                                                                                                                        |
 | `importTssKey?`          | Key to import key into TSS during first time login. For secp256k1 curve, you need to pass the private key, and for ed25519 curve you need to pass the seed. The ed25519 seed is hashed to generate 64 bytes, where first 32 bytes are used to generate the public key, and last 32 bytes are used as private key.                                                                                                          |
-| `prefetchTssPublicKeys?` | Defines the number of TSS public keys to prefetch.The SDK by default starts with 2/2 flow, and this parameter should be used in the flow where you want to generate the recovery factor during first time login. The parameters helps you to reduce the operation time by pre-fetching the TSS public key and use it during generating new shares. For existing user you can set it to `0`. Default is `1`, maximum is `3` |
+| `prefetchTssPublicKeys?`  | Number of TSS public keys to prefetch (`0`–`3`). Set this to the number of factors you will create; use `0` for existing users. Default is `1`.                                                                                                                                                                                                                                                                           |
+| `registerExistingSFAKey?` | New users only: convert an SFA user to TSS. Do not combine with `importTssKey`. v1 SFA users are not supported. Default value is `false`. Once the SFA key is imported, users won't be able to access their account using the SFA SDK.                                                                                                                                                                                    |
 
 </TabItem>
 <TabItem value="type">
@@ -100,6 +115,11 @@ interface JWTLoginParams {
    * Default is 1, maximum is 3.
    */
   prefetchTssPublicKeys?: number;
+  /**
+   * For new users, use SFA key if user was registered with SFA before.
+   * Cannot be combined with importTssKey. v1 SFA users are not supported.
+   */
+  registerExistingSFAKey?: boolean;
 }
 
 export interface ExtraParams {
@@ -133,6 +153,9 @@ dashboard. If you haven't already created one,
 [learn how to create a verifier](/docs/authentication/custom-connections/custom-jwt#set-up-custom-jwt-connection).
 
 ```tsx
+import { COREKIT_STATUS } from "@web3auth/react-native-mpc-core-kit";
+import { BN } from "bn.js";
+
 const jwtLoginParams: JWTLoginParams = {
   verifier: "YOUR_VERIFIER_NAME",
   verifierId: "USER'S_VERIFIER_ID",
@@ -140,6 +163,11 @@ const jwtLoginParams: JWTLoginParams = {
 };
 
 await coreKitInstance.loginWithJWT(jwtLoginParams);
+
+if (coreKitInstance.status === COREKIT_STATUS.REQUIRED_SHARE) {
+  const hex = await coreKitInstance.getDeviceFactor(); // or backup / recoverFactor(...)
+  if (hex) await coreKitInstance.inputFactorKey(new BN(hex, "hex"));
+}
 ```
 
 ### Aggregate Verifier
@@ -190,6 +218,25 @@ const jwtLoginParams = {
 await coreKitInstance.loginWithJWT(jwtLoginParams);
 ```
 
+## Importing an existing Single Factor Auth(SFA) Key.
+
+When logging in for the first time, you can import an existing SFA key using the
+`registerExistingSFAKey` parameter. Do not combine it with `importTssKey`. v1 SFA users are not
+supported. Once the SFA key is imported, users will no longer be able to access their account
+through the SFA SDK.
+
+```tsx
+const jwtLoginParams = {
+  verifier: "YOUR_VERIFIER_NAME",
+  verifierId: "USER'S_VERIFIER_ID",
+  idToken: "USER'S_ID_TOKEN",
+  // focus-next-line
+  registerExistingSFAKey: true,
+};
+
+await coreKitInstance.loginWithJWT(jwtLoginParams);
+```
+
 ## Backend verification
 
 To verify the user in the backend, you can retrieve the user's signature from frontend, and validate
@@ -218,7 +265,7 @@ For verification you'll need to install couple of packages,
 const { fetchLocalConfig } = require("@toruslabs/fnd-base");
 const { SignatureValidator } = require("@toruslabs/signature-validator");
 
-// Here network can be "sapphire_mainnet" or "sapphire_testnet", since MPC doesn't support
+// Here network can be "sapphire_mainnet" or "sapphire_devnet", since MPC doesn't support
 // legacy networks.
 const network = "sapphire_mainnet";
 

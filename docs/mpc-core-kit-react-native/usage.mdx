@@ -24,14 +24,14 @@ Please, note we for the simplicity, we use the `coreKitInstance` to refer to the
 
 | Method Name                                   | Description                                                                                                  |
 | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| [loginWithJWT](#login-with-jwt)               | Logs in the user with a JWT-based ID Token.                                                                  |
-| [inputFactorKey](#login-with-existing-factor) | This method can be used to login with the exisitng factor key, for instance when threshold is not satisfied. |
-| [logout](#logout)                             | This methods logs out the user and invalidates the session.                                                  |
+| [loginWithJWT](#login-with-jwt)               | Logs in the user with a JWT-based ID Token. Throws if already logged in or rehydrated.                                          |
+| [inputFactorKey](#login-with-existing-factor) | This method can be used to login with the exisitng factor key, for instance when threshold is not satisfied (`REQUIRED_SHARE`). |
+| [logout](#logout)                             | Ends the session and re-inits. Status is `INITIALIZED` (no rehydrate).                                                          |
 
 :::info Get help with Authentication
 
-Check out the [**Authentication**](/sdk/mpc-core-kit/mpc-core-kit-js/authentication) section of the
-SDK Reference to learn more about these functions.
+Check out the [**Authentication**](./authentication) section of the SDK Reference to learn more
+about these functions.
 
 :::
 
@@ -43,17 +43,20 @@ SDK.
 
 | Method Name                      | Description                                                                                                                                                                                              |
 | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [commitChanges](#commit-changes) | Commits the changes made to the user's account while in manual sync mode. To use this function, you'll need to enable the manual sync while [configuring the instance](./initialize#configure-instance). |
+| [commitChanges](#commit-changes)     | Commits the changes made to the user's account while in manual sync mode. To use this function, you'll need to enable the manual sync while [configuring the instance](./initialize#configure-instance). |
+| [setManualSync](#set-manual-sync)    | Flushes pending writes, then turns manual sync on or off.                                                                                                                                                |
 
 ### Factor Handling Methods
 
 | Method Name                                    | Description                                                                                                                                                                                                          |
 | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [enableMFA](#enable-mfa)                       | By default, the SDK starts with 2/2 flow unless the `disableHashedFactorKey` is set to true during initialisation. To make the flow completely non-custodial, and have 2/3 flow, you can use the enableMFA function. |
-| [createFactor](#create-factor)                 | Creates a new TSS Factor for the user's account to increase. You can configure the type of factor, it can either be a device factor, or backup factor.                                                               |
-| [deleteFactor](#delete-factor)                 | This method allows you to deletes a TSS factor for the user. Please make sure user has enough factors to recover the account.                                                                                        |
+| [createFactor](#create-factor)                 | Creates a new TSS Factor for the user's account to increase. You can configure the type of factor, it can either be a device factor, or backup factor. Returns the factor hex. Max 10 factors.                       |
+| [deleteFactor](#delete-factor)                 | This method allows you to deletes a TSS factor for the user. Cannot delete the last factor or the one currently in use.                                                                                              |
+| [getTssFactorPub](#get-tss-factor-pub)         | Returns compressed hex public keys of all factors. Use these with `deleteFactor`.                                                                                                                                    |
 | [getCurrentFactorKey](#get-current-factor-key) | This methods returns the current factor key used along with social factor to log in.                                                                                                                                 |
 | [getDeviceFactor](#get-device-factor)          | This methods returns the device factor if available.                                                                                                                                                                 |
+| [setDeviceFactor](#set-device-factor)          | Save a device factor to `storage`. Throws if one exists unless `replace` is true.                                                                                                                                    |
 
 ### User & Wallet Account Methods
 
@@ -61,16 +64,30 @@ SDK.
 | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | [setTssWalletIndex](#set-tss-wallet-index)  | This method allows you to set the TSS wallet index for secp256k1 curve. For secpk256k1 curve, we do support HD Wallet, and you can change the index for HD Wallet using this method. Please note, this is not supported for ed25519 curve. |
 | [getPubKey](#get-secp256k1-public-key)      | Returns the TSS PubKey in SEC1 format which can be used for the secp256k1 curve to derive the EOA address.                                                                                                                                 |
+| [getPubKeyPoint](#get-pubkey-point)         | Same key as a tKey `Point`.                                                                                                                                                                                                                |
 | [getPubKeyEd25519](#get-ed25519-public-key) | Returns the ed25519 public key which can be used to derive the EOA address for the chains supporting ed25519 curve.                                                                                                                        |
 | [getUserInfo](#get-user-info)               | Returns the user information such as name, verifier, email, and other details.                                                                                                                                                             |
 | [getKeyDetails](#get-key-details)           | Returns the key details for the user account, these key details has information like total factors, and threshold.                                                                                                                         |
+
+### Export Methods
+
+These reconstruct the private key. Not recommended unless the user explicitly wants to export.
+
+| Method Name                                          | Description                                                                      |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------- |
+| [_UNSAFE_exportTssKey](#export-tss-key)              | secp256k1 private key hex for the current account index.                         |
+| [_UNSAFE_exportTssEd25519Seed](#export-ed25519-seed) | ed25519 seed. Needs a client-generated or imported key.                          |
+| [_UNSAFE_recoverTssKey](#recover-tss-key)            | Reconstruct TSS key from DEVICE **and** RECOVERY factors. Same type twice fails. |
 
 ### Additional Helper Methods
 
 | Method Name                       | Description                                                                                   |
 | --------------------------------- | --------------------------------------------------------------------------------------------- |
-| [mnemonicToKey](#mnemonic-to-key) | This method helps you to convert 24 word mnemonic(seed phrase) into corresponding factor key. |
-| [keyToMnemonic](#key-to-mnemonic) | This method helps you to convert the factor key to corresponding 24 mnemonic.                 |
+| [mnemonicToKey](#mnemonic-to-key)         | This method helps you to convert 24 word mnemonic(seed phrase) into corresponding factor key. |
+| [keyToMnemonic](#key-to-mnemonic)         | This method helps you to convert the factor key to corresponding 24 mnemonic.                 |
+| [generateFactorKey](#generate-factor-key) | Random factor `{ private: BN, pub: Point }`.                                                  |
+| [sigToRSV](#sig-to-rsv)                   | Split a 65-byte secp256k1 signature into `{ r, s, v }`.                                       |
+| [parseToken](#parse-token)                | Decode a JWT payload.                                                                         |
 
 ## Authentication Methods
 
@@ -79,18 +96,18 @@ SDK.
 Logs in the user with a JWT-based ID Token. We recommend using this method to authenticate users for
 better performance. For this method, you'll have to manage the authentication yourself, and Web3Auth
 will only verify the idToken passed. Please refer to the
-[authentication section](/sdk/mpc-core-kit/mpc-core-kit-js/authentication/login-jwt) for more
+[authentication section](./authentication) for more
 details.
 
 ### Login With Existing Factor
 
-This method can be used to input the factor key, for instance when threshold is not satisfied. For
-example, if user's device factor is not present, this method can be used to input the back up factor
-key, and recover the account. If the factor key is correct, the SDK initializes the user's account
-and logs them in.
+This method can be used to input the factor key when `status === REQUIRED_SHARE`. For example, if
+user's device factor is not present, this method can be used to input the back up factor key, and
+recover the account. Source the hex from `getDeviceFactor()`, `mnemonicToKey`, or `recoverFactor`.
+If the factor key is valid, the SDK reconstructs tKey and creates a session.
 
-If you want to change the factor key in the current state of the SDK, you can use this method.
-Please make sure to convert your factor key to BN before passing it to this method.
+The factor is always checked against metadata `factorEncs` before it is accepted. Please make sure
+to convert your factor key to BN before passing it to this method.
 
 ```tsx
 import { BN } from "bn.js";
@@ -101,7 +118,8 @@ await coreKitInstance.inputFactorKey(factorKey);
 
 ### Logout
 
-This method logs out the user, and invalidates the session.
+This method logs out the user, invalidates the session, and re-inits without rehydrate. Status is
+`INITIALIZED`.
 
 ```tsx
 await coreKitInstance.logout();
@@ -129,6 +147,14 @@ server, after they have successfully configured everything in the local.
 await coreKitInstance.commitChanges();
 ```
 
+### Set Manual Sync
+
+Flushes pending metadata writes, then turns manual sync on or off.
+
+```tsx
+await coreKitInstance.setManualSync(true);
+```
+
 ## Factor Handling Methods
 
 ### Enable MFA
@@ -142,8 +168,12 @@ returns it to the user. The default backup factor is 24 words mnemonic. You can 
 factor to be social recovery, password recovery, authenticator app, or back up of your choice.
 
 Most importantly, this method also deletes the Hashed Factor Key enabling a non-custodial flow. The
-method takes in `enableMFAParams` which allows you to configure the backup factor of your choice.
-You can also opt to not create a backup factor by setting `recoveryFactor` to `false`.
+hashed factor must still exist. The method takes in `enableMFAParams` which allows you to configure
+the backup factor of your choice. You can also opt to not create a backup factor by setting
+`recoveryFactor` to `false`. If `recoveryFactor` is `false`, the return value is an empty string.
+
+If `manualSync` has pending edits, call `commitChanges()` first. After `enableMFA`, call
+`commitChanges()` again when `manualSync` is `true`.
 
 #### Function Parameters
 
@@ -213,6 +243,8 @@ import { keyToMnemonic } from "@web3auth/react-native-mpc-core-kit";
 const factorKey = await coreKitInstance.enableMFA({});
 // Convert the factor key to 24 words mneonic
 const factorKeyMnemonic = keyToMnemonic(factorKey);
+// Required when the instance was created with manualSync: true
+await coreKitInstance.commitChanges();
 
 console.log(
   "MFA enabled, device factor stored in local store, deleted hashed cloud key, your backup factor key: ",
@@ -308,60 +340,53 @@ You can also pass your own factor key obtained from other sources like social re
 authenticator app, etc.
 
 ```tsx
-import { generateFactorKey } from "@web3auth/react-native-mpc-core-kit";
+import { generateFactorKey, keyToMnemonic } from "@web3auth/react-native-mpc-core-kit";
 
 const factorKey = generateFactorKey();
 
 // focus-start
-await coreKitInstance.createFactor({
+const factorHex = await coreKitInstance.createFactor({
   shareType: TssShareType.RECOVERY,
   factorKey: factorKey.private,
 });
 // focus-end
+const mnemonic = keyToMnemonic(factorHex);
+// Required when the instance was created with manualSync: true
+await coreKitInstance.commitChanges();
 ```
 
 ### Delete Factor
 
 To delete a factor you can use the `deleteFactor` method. This method helps you delete the factor,
-respective to the factor pub provided for the user's account.
+respective to the factor pub provided for the user's account. You cannot delete the last factor or
+the one currently in use. Pass `factorKey` to also delete its metadata backup.
 
-You can get the factor pubs by using the `getKeyDetails` method. It will throw an error if you try
-to delete the factor that is currently active within the state of the SDK.
+You can get the factor pubs with `getTssFactorPub()`, or from `getKeyDetails().shareDescriptions`.
+It will throw an error if you try to delete the factor that is currently active within the state of
+the SDK.
 
 Use the `inputFactorKey` method to change the factor key in the current state of the SDK before
 deleting the current active factor.
 
 #### Usage
 
-In this sample we delete the social recovery factor from the user's account. To delete the device
-factor you can replace the `FactorKeyTypeShareDescription.SocialShare` with
-`FactorKeyTypeShareDescription.DeviceShare`.
+```tsx
+import { factorKeyCurve } from "@web3auth/react-native-mpc-core-kit";
+import { Point } from "@tkey/common-types";
+
+const pubs = coreKitInstance.getTssFactorPub();
+const pub = Point.fromSEC1(factorKeyCurve, pubs[i]);
+await coreKitInstance.deleteFactor(pub);
+// Required when the instance was created with manualSync: true
+await coreKitInstance.commitChanges();
+```
+
+### Get TSS Factor Pub
+
+Returns compressed hex public keys of all factors. Use these with `deleteFactor`.
 
 ```tsx
-import { FactorKeyTypeShareDescription } from "@web3auth/react-native-mpc-core-kit";
-import { Point, secp256k1 } from "@tkey/common-types";
-
-let factorPub: string | undefined;
-for (const [key, value] of Object.entries(
-  (await coreKitInstance.getKeyDetails()).shareDescriptions,
-)) {
-  if (value.length > 0) {
-    const parsedData = JSON.parse(value[0]);
-    if (parsedData.module === FactorKeyTypeShareDescription.SocialShare) {
-      factorPub = key;
-    }
-  }
-}
-
-if (factorPub) {
-  const pub = Point.fromSEC1(secp256k1, factorPub);
-  // focus-next-line
-  await coreKitInstance.deleteFactor(pub);
-  // This is required to sync the changes to the metadata server.
-  await coreKitInstance.commitChanges();
-} else {
-  console.log("No social factor found to delete");
-}
+const pubs = coreKitInstance.getTssFactorPub();
 ```
 
 ### Get Current Factor Key
@@ -386,6 +411,17 @@ if (deviceFactorHex) {
 } else {
   console.log("No device factor key found");
 }
+```
+
+### Set Device Factor
+
+Save a device factor to `storage`. Throws if one already exists unless `replace` is `true`. When
+`disableHashedFactorKey` is enabled, first login and session rehydrate persist the device factor
+automatically.
+
+```tsx
+await coreKitInstance.setDeviceFactor(factorKey); // throws if one exists
+await coreKitInstance.setDeviceFactor(factorKey, true); // replace
 ```
 
 ## User & Wallet Account Functions
@@ -423,6 +459,14 @@ generated! Remember that each account index you set will result in a different p
 
 ```ts
 const pubKey = await coreKitInstance.getPubKey();
+```
+
+### Get PubKey Point
+
+Same public key as a tKey `Point`.
+
+```ts
+const pubKeyPoint = coreKitInstance.getPubKeyPoint();
 ```
 
 ### Get Ed25519 Public Key
@@ -471,6 +515,36 @@ const keyDetails: MPCKeyDetails = await coreKitInstance.getKeyDetails();
 | `totalFactors`      | Defines the total factors created by the user.                                                                                                                       |
 | `shareDescriptions` | Holds a map of TSS shares descriptions.                                                                                                                              |
 | `tssPubKey?`        | The TSS PubKey, you can also get the TSS PubKey using the `getPubKey` method. The PubKey is in SEC1 format.                                                          |
+| `keyType`           | Curve in use: secp256k1 or ed25519.                                                                                                                                  |
+
+## Export
+
+These methods reconstruct the private key. Use them only when the user explicitly wants to export.
+
+### Export TSS Key
+
+Exports the secp256k1 private key hex for the current account index.
+
+```tsx
+const keyHex = await coreKitInstance._UNSAFE_exportTssKey();
+```
+
+### Export Ed25519 Seed
+
+Exports the ed25519 seed. Requires `useClientGeneratedTSSKey` or an imported key.
+
+```tsx
+const seed = await coreKitInstance._UNSAFE_exportTssEd25519Seed();
+```
+
+### Recover TSS Key
+
+Reconstructs the TSS key from DEVICE **and** RECOVERY factor hex values. Passing two factors of the
+same type fails.
+
+```tsx
+const keyHex = await coreKitInstance._UNSAFE_recoverTssKey([deviceHex, recoveryHex]);
+```
 
 ## Additional Helper Methods
 
@@ -496,4 +570,34 @@ import { keyToMnemonic } from "@web3auth/react-native-mpc-core-kit";
 
 // focus-next-line
 const factorKeyMnemonic = keyToMnemonic(factorKeyHex);
+```
+
+### Generate Factor Key
+
+Creates a random factor key pair.
+
+```tsx
+import { generateFactorKey } from "@web3auth/react-native-mpc-core-kit";
+
+const { private: factorKey, pub } = generateFactorKey();
+```
+
+### Sig to RSV
+
+Splits a 65-byte secp256k1 signature (`r||s||v`) into `{ r, s, v }`.
+
+```tsx
+import { sigToRSV } from "@web3auth/react-native-mpc-core-kit";
+
+const { r, s, v } = sigToRSV(signature);
+```
+
+### Parse Token
+
+Decodes a JWT payload.
+
+```tsx
+import { parseToken } from "@web3auth/react-native-mpc-core-kit";
+
+const payload = parseToken(idToken);
 ```

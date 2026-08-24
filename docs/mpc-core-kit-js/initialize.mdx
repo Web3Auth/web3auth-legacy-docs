@@ -44,18 +44,20 @@ configure the SDK.
 | `web3AuthClientId`          | The Web3Auth Client ID for your application. Find one at https://dashboard.web3auth.io                                                                                                                                                                                                                                                                                                                                                                    |
 | `manualSync?`               | Enables you to manually sync with the Web3Auth Metadata Server, helping you manage the API calls to the server. We recommend using this approach. Default value is false.                                                                                                                                                                                                                                                                                 |
 | `baseUrl?`                  | URL of the service worker handling the authentication in popup flow. For general usecases, you don't need to change this value. Default value is `${window.location.origin}/serviceworker`.                                                                                                                                                                                                                                                               |
-| `web3AuthNetwork?`          | Web3Auth Network used for MPC Wallet Management. Use `WEB3AUTH_NETWORK.DEVNET` in testing environment and `WEB3AUTH_NETWORK.Mainnet` in production environment. Default value is `WEB3AUTH_NETWORK.Mainnet`.                                                                                                                                                                                                                                              |
-| `sessionTime?`              | Determine the session length in seconds. By default the value is set at 86400 seconds, ie. 1 day.                                                                                                                                                                                                                                                                                                                                                         |
-| `uxMode?`                   | Four uxModes are supported: <ul><li>`'popup'`: In this uxMode, a popup will be shown to user for login.</li><li>`'redirect'`: In this uxMode, user will be redirected to a new window tab for login.</li><li>`'nodejs'`: Use this for Node.js projects.</li><li>`'react-native'`: Use this for React Native apps.</li></ul> Use of `'redirect'` mode is recommended in browsers where popups might get blocked.                                           |
+| `web3AuthNetwork?`          | Web3Auth Network used for MPC Wallet Management. Use `WEB3AUTH_NETWORK.DEVNET` in testing environment and `WEB3AUTH_NETWORK.MAINNET` in production environment. Default value is `WEB3AUTH_NETWORK.MAINNET`.                                                                                                                                                                                                                                                |
+| `sessionTime?`              | Determine the session length in seconds. By default the value is set at 86400 seconds, ie. 1 day. Session and auth-signature TTL.                                                                                                                                                                                                                                                                                                                         |
+| `uxMode?`                   | Four uxModes are supported: <ul><li>`'popup'`: In this uxMode, a popup will be shown to user for login.</li><li>`'redirect'`: In this uxMode, user will be redirected to a new window tab for login.</li><li>`'nodejs'`: Use this for Node.js projects.</li><li>`'react-native'`: Use this for React Native apps.</li></ul> Default value is `'redirect'`. Use of `'redirect'` mode is recommended in browsers where popups might get blocked.             |
 | `enableLogging?`            | Enables Logs for the SDK. Default value is false.                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `redirectPathName?`         | Specifies the url path where user will be redirected after login. Redirect Uri for OAuth is `baseUrl/redirectPathName`.                                                                                                                                                                                                                                                                                                                                   |
-| `disableHashedFactorKey?`   | Disables the Hashed Key, making the sure user logs in always in a non-custodial mode. Recommended only if you have proper MFA flow setup for the user while creating the account. Default value is false.                                                                                                                                                                                                                                                 |
+| `disableHashedFactorKey?`   | Disables the hashed (cloud) factor. First login stores a device factor locally; recovery needs another factor. Recommended only if you have a proper MFA flow for the account. Default value is false.                                                                                                                                                                                                                                                    |
 | `tssLib`                    | The threshold signing library to use: <ul><li>For secp256k1 keyType, you can use the `@toruslabs/tss-dkls-lib`</li><li> For ed25519 keyType you can use `@toruslabs/tss-frost-lib`</li></ul>                                                                                                                                                                                                                                                              |
-| `hashedFactorNonce?`        | Nonce for the hashed factor. Default value is `web3AuthClientId`. [Learn more about hashed factor](/docs/sdk/mpc-core-kit/mpc-core-kit-js/#hashed-cloud-factor).                                                                                                                                                                                                                                                                                          |
-| `storage`                   | Defines the storage for MPC Core Kit's state.                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `hashedFactorNonce?`        | Nonce for the hashed factor. Default value is `web3AuthClientId`. Share the same nonce across apps to share MFA state. [Learn more about hashed factor](/docs/sdk/mpc-core-kit/mpc-core-kit-js/#hashed-cloud-factor).                                                                                                                                                                                                                                    |
+| `storage`                   | Persists the device factor and `sessionId`. Use `window.localStorage`, `window.sessionStorage`, `new MemoryStorage()`, or an async `{ getItem, setItem }` adapter (React Native).                                                                                                                                                                                                                                                                         |
 | `useDKG?`                   | Specifies whether to use DKG or not. If set to false, the key would be securely generated on the client side, and imported to Web3Auth Network. If set to true, the key would be generated using a distributed network.Setting the flag to false, and generating a key on the client side significantly improves the speed of first-time login. The default value secp256k1 is `true`. Please note, it is not supported for ed25519, and is always false. |
 | `useClientGeneratedTSSKey?` | Specifies whether to use client generated TSS key or not. The default value is set to `false` for secp256k1 and `true` for ed25519. The default value is set to `true` for ed25519 as it allows users to export the ed25519 key.                                                                                                                                                                                                                          |
-| `disableSessionManager?`    | Specifies whether to disable the session manager or not. The default value is `false`. Please note, the session will still expire after the defined session time.                                                                                                                                                                                                                                                                                         |
+| `disableSessionManager?`    | Skip session create/rehydrate. Signatures still expire at `sessionTime`. Default value is `false`.                                                                                                                                                                                                                                                                                                                                                        |
+| `socketTransports?`         | TSS socket.io transports. Default value is `['websocket','polling']`. Use `['polling']` if WebSockets are blocked.                                                                                                                                                                                                                                                                                                                                        |
+| `serverTimeOffset?`         | Clock skew in seconds. Default value is `0`.                                                                                                                                                                                                                                                                                                                                                                                                              |
 
 </TabItem>
 
@@ -112,7 +114,13 @@ export interface Web3AuthOptions {
   sessionTime?: number;
 
   /**
-   * @defaultValue `'POPUP'`
+   * @defaultValue `false`
+   * Skip session create/rehydrate. Signatures still expire at sessionTime.
+   */
+  disableSessionManager?: boolean;
+
+  /**
+   * @defaultValue `'redirect'`
    */
   uxMode?: CoreKitMode;
 
@@ -177,7 +185,28 @@ export interface Web3AuthOptions {
    */
   hashedFactorNonce?: string;
 
+  /**
+   * @defaultValue `0`
+   */
   serverTimeOffset?: number;
+
+  /**
+   * @defaultValue `true`
+   * Not supported for ed25519.
+   */
+  useDKG?: boolean;
+
+  /**
+   * @defaultValue `false` for secp256k1 and `true` for ed25519
+   * Required to export the ed25519 seed.
+   */
+  useClientGeneratedTSSKey?: boolean;
+
+  /**
+   * @defaultValue `['websocket','polling']`
+   * TSS socket.io transports.
+   */
+  socketTransports?: string[];
 }
 
 export type WEB3AUTH_NETWORK_TYPE = (typeof WEB3AUTH_NETWORK)[keyof typeof WEB3AUTH_NETWORK];
@@ -218,7 +247,7 @@ const coreKitInstance = new Web3AuthMPCCoreKit({
   web3AuthNetwork: WEB3AUTH_NETWORK.MAINNET,
   manualSync: true, // This is the recommended approach
   tssLib: tssLib,
-  storage: window.storage,
+  storage: window.localStorage,
 });
 ```
 
@@ -235,7 +264,7 @@ const coreKitInstance = new Web3AuthMPCCoreKit({
   web3AuthNetwork: WEB3AUTH_NETWORK.MAINNET,
   manualSync: true, // This is the recommended approach
   tssLib: tssLib,
-  storage: window.storage,
+  storage: window.localStorage,
 });
 ```
 
@@ -245,7 +274,12 @@ const coreKitInstance = new Web3AuthMPCCoreKit({
 ## Initialize Web3AuthMPCCoreKit
 
 To initialize the instance, you need to call the `init` method. The method also takes the
-`InitParams` as an input.
+`InitParams` as an input. Call this before login.
+
+`init` builds tKey and the auth client. Then, if configured, it finishes an OAuth redirect and/or
+restores a saved session. After a successful redirect or rehydrate, `status` is `LOGGED_IN` or
+`REQUIRED_SHARE` — do not call login again. Login methods throw if the instance is already logged in
+or rehydrated.
 
 ### Parameters
 
@@ -261,8 +295,8 @@ To initialize the instance, you need to call the `init` method. The method also 
 
 | Parameter              | Description                                                               |
 | ---------------------- | ------------------------------------------------------------------------- |
-| `handleRedirectResult` | Handles the redirect result during initialization. Default value is true. |
-| `rehydrate`            | Rehydrates the session during initialization. Default value is true.      |
+| `handleRedirectResult` | Complete OAuth when `uxMode` is `"redirect"` and the URL hash has a result. Default value is true. |
+| `rehydrate`            | Restore a previous session from `storage` if `sessionId` is valid. Default value is true.          |
 
 </TabItem>
 
@@ -290,6 +324,38 @@ export interface InitParams {
 ### Usage
 
 ```ts
-// Web3AuthMPCCoreKit instance from previous steps
+import { COREKIT_STATUS } from "@web3auth/mpc-core-kit";
+import { BN } from "bn.js";
+
+// Rehydrate is true by default
 await coreKitInstance.init();
+
+if (coreKitInstance.status === COREKIT_STATUS.LOGGED_IN) {
+  // Session restored — skip login
+} else if (coreKitInstance.status === COREKIT_STATUS.REQUIRED_SHARE) {
+  const hex = await coreKitInstance.getDeviceFactor();
+  if (hex) await coreKitInstance.inputFactorKey(new BN(hex, "hex"));
+} else {
+  await coreKitInstance.loginWithJWT({ verifier, verifierId, idToken });
+}
+
+// Cold start without restoring a previous session:
+// await coreKitInstance.init({ rehydrate: false });
 ```
+
+Rehydration needs `disableSessionManager: false`, a `sessionId` in the same `storage`, and an
+unexpired session. It is skipped when `disableSessionManager` is `true`, `rehydrate` is `false`,
+there is no/expired `sessionId`, or an OAuth redirect hash is present (`handleRedirectResult` runs
+instead). A restored session includes `factorKey`, `postBoxKey`, `signatures`, `userInfo`,
+`tssShareIndex`, and `tssPubKey`.
+
+## SDK Status
+
+Read `coreKitInstance.status` after `init()` or login to decide the next step.
+
+| Value             | Meaning                                                         |
+| ----------------- | --------------------------------------------------------------- |
+| `NOT_INITIALIZED` | Call `init()`                                                   |
+| `INITIALIZED`     | Ready to login                                                  |
+| `REQUIRED_SHARE`  | Auth succeeded; call `inputFactorKey` with another factor       |
+| `LOGGED_IN`       | Can sign. Do not call login again on this instance              |

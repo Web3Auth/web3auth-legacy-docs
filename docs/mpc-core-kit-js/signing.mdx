@@ -60,7 +60,7 @@ const coreKitInstance = new Web3AuthMPCCoreKit({
   manualSync: true, // This is the recommended approach
   // focus-next-line
   tssLib: tssLib,
-  storage: window.storage,
+  storage: window.localStorage,
 });
 ```
 
@@ -149,7 +149,7 @@ const coreKitInstance = new Web3AuthMPCCoreKit({
   web3AuthNetwork: WEB3AUTH_NETWORK.MAINNET,
   manualSync: true, // This is the recommended approach
   tssLib: tssLib,
-  storage: window.storage,
+  storage: window.localStorage,
 });
 
 // Compressed pubKey
@@ -166,11 +166,27 @@ To sign the transaction for secp256k1 curve, you can use the `sign` method. The 
 both secp256k1 and ed25519 curve. Using the method dkls-lib this function will return ECDSA
 signature and using frost-lib, it will return EDDSA sginature.
 
+`sign(data, hashed?, precompute?)` takes a `Buffer`. `hashed` defaults to `false` (the SDK hashes
+with keccak256). secp256k1 returns a 65-byte `r||s||v`. You can warm TSS with
+`precompute_secp256k1()` and pass the result into the next `sign` — it is one-shot.
+
+`setPreSigningHook` can abort signing if the hook returns `{ success: false }`.
+`makeEthereumSigner(coreKitInstance)` wraps `sign(..., true)` as `{ sign(msgHash), getPublic() }`
+for EVM providers.
+
 ```tsx
 const msg = Buffer.from("Welcome to Web3Auth");
 
-// Returns the ECDSA signature bytes.
+// TSS ECDSA (secp256k1): hashes the bytes with keccak256, then signs. Returns 65-byte r||s||v.
 const signature = await coreKitInstance.sign(msg);
+
+// Warm TSS before the user signs to reduce latency. One-shot.
+const pre = await coreKitInstance.precompute_secp256k1();
+await coreKitInstance.sign(msg, false, pre);
+
+coreKitInstance.setPreSigningHook(async ({ data, hashed }) => {
+  return { success: true };
+});
 ```
 
 ## EdDSA Signature
@@ -218,7 +234,7 @@ const coreKitInstance = new Web3AuthMPCCoreKit({
   manualSync: true, // This is the recommended approach
   // focus-next-line
   tssLib: tssLib,
-  storage: window.storage,
+  storage: window.localStorage,
 });
 ```
 
@@ -330,7 +346,7 @@ const coreKitInstance = new Web3AuthMPCCoreKit({
   web3AuthNetwork: WEB3AUTH_NETWORK.MAINNET,
   manualSync: true, // This is the recommended approach
   tssLib: tssLib,
-  storage: window.storage,
+  storage: window.localStorage,
 });
 
 const pubKey = coreKitInstance.getPubKeyEd25519();
@@ -339,8 +355,7 @@ const pubKey = coreKitInstance.getPubKeyEd25519();
 #### Signing
 
 To sign the transaction for ed25519 curve, you can use the `sign` method. The sign method supports
-both secp256k1 and ed25519 curve. Using the method dkls-lib this function will return ECDSA
-signature and using frost-lib, it will return EDDSA sginature.
+both secp256k1 and ed25519 curve. Using frost-lib, this function returns an EdDSA signature.
 
 ```tsx
 const msg = Buffer.from("Welcome to Web3Auth");
