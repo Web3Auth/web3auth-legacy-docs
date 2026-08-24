@@ -123,7 +123,8 @@ details.
 
 This method can be used to input the factor key when `status === REQUIRED_SHARE`. For example, if
 user's device factor is not present, this method can be used to input the back up factor key, and
-recover the account. Source the hex from `getDeviceFactor()`, `mnemonicToKey`, or `recoverFactor`.
+recover the account. Source the hex from `getDeviceFactor()`, `mnemonicToKey`, or
+`TssSecurityQuestion.recoverFactor`.
 If the factor key is valid, the SDK reconstructs tKey and creates a session.
 
 The factor is always checked against metadata `factorEncs` before it is accepted. Please make sure
@@ -190,7 +191,7 @@ factor to be social recovery, password recovery, authenticator app, or back up o
 Most importantly, this method also deletes the Hashed Factor Key enabling a non-custodial flow. The
 hashed factor must still exist. The method takes in `enableMFAParams` which allows you to configure
 the backup factor of your choice. You can also opt to not create a backup factor by setting
-`recoveryFactor` to `false`. If `recoveryFactor` is `false`, the return value is an empty string.
+`recoveryFactor` to `false`. If `recoveryFactor` is `false`, the return value is `undefined`.
 
 If `manualSync` has pending edits, call `commitChanges()` first. After `enableMFA`, call
 `commitChanges()` again when `manualSync` is `true`.

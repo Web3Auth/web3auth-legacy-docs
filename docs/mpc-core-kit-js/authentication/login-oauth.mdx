@@ -629,13 +629,22 @@ file. `loginWithOAuth` returns immediately; finish login with `init()` (default
 `handleRedirectResult: true`) or call `handleRedirectResult()` yourself.
 
 For example, if `baseUrl` is `https://your-domain.com` and `redirectPathName` is `auth` then the
-user will be redirected to the `https://your-domain.com/auth` page after logging in where you can
-get login result by calling `init()` on redirected page mount.
+user will be redirected to the `https://your-domain.com/auth` page after logging in. Call `init()`
+on that page — it completes the OAuth redirect when `handleRedirectResult` is `true` (the default).
+
+```tsx
+await coreKitInstance.init();
+```
+
+If you set `handleRedirectResult: false`, `init()` skips the hash. Check for `#state` or
+`#access_token` yourself, then call `handleRedirectResult()`.
 
 ```tsx
 await coreKitInstance.init({ handleRedirectResult: false, rehydrate: true });
-if (window.location.hash.includes("#state")) {
+if (
+  window.location.hash.includes("#state") ||
+  window.location.hash.includes("#access_token")
+) {
   await coreKitInstance.handleRedirectResult();
 }
-```
 ```
