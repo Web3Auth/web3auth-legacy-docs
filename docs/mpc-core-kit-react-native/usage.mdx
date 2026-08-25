@@ -103,8 +103,8 @@ details.
 
 This method can be used to input the factor key when `status === REQUIRED_SHARE`. For example, if
 user's device factor is not present, this method can be used to input the back up factor key, and
-recover the account. Source the hex from `getDeviceFactor()`, `mnemonicToKey`, or
-`TssSecurityQuestion.recoverFactor`.
+recover the account. Source the hex from `getDeviceFactor()`, `mnemonicToKey`, or another securely
+stored factor key.
 If the factor key is valid, the SDK reconstructs tKey and creates a session.
 
 The factor is always checked against metadata `factorEncs` before it is accepted. Please make sure
@@ -362,7 +362,8 @@ To delete a factor you can use the `deleteFactor` method. This method helps you 
 respective to the factor pub provided for the user's account. You cannot delete the last factor or
 the one currently in use. Pass `factorKey` to also delete its metadata backup.
 
-You can get the factor pubs with `getTssFactorPub()`, or from `getKeyDetails().shareDescriptions`.
+You can get the factor pubs with `await getTssFactorPub()`, or from
+`(await getKeyDetails()).shareDescriptions`.
 It will throw an error if you try to delete the factor that is currently active within the state of
 the SDK.
 
@@ -375,7 +376,7 @@ deleting the current active factor.
 import { factorKeyCurve } from "@web3auth/react-native-mpc-core-kit";
 import { Point } from "@tkey/common-types";
 
-const pubs = coreKitInstance.getTssFactorPub();
+const pubs = await coreKitInstance.getTssFactorPub();
 const pub = Point.fromSEC1(factorKeyCurve, pubs[i]);
 await coreKitInstance.deleteFactor(pub);
 // Required when the instance was created with manualSync: true
@@ -387,7 +388,7 @@ await coreKitInstance.commitChanges();
 Returns compressed hex public keys of all factors. Use these with `deleteFactor`.
 
 ```tsx
-const pubs = coreKitInstance.getTssFactorPub();
+const pubs = await coreKitInstance.getTssFactorPub();
 ```
 
 ### Get Current Factor Key
@@ -467,7 +468,7 @@ const pubKey = await coreKitInstance.getPubKey();
 Same public key as a tKey `Point`.
 
 ```ts
-const pubKeyPoint = coreKitInstance.getPubKeyPoint();
+const pubKeyPoint = await coreKitInstance.getPubKeyPoint();
 ```
 
 ### Get Ed25519 Public Key
@@ -546,6 +547,16 @@ same type fails.
 ```tsx
 const keyHex = await coreKitInstance._UNSAFE_recoverTssKey([deviceHex, recoveryHex]);
 ```
+
+## Security Question
+
+Security Question management and recovery are not currently supported through the React Native
+Core Kit facade. The JavaScript `TssSecurityQuestion` helper requires access to
+`mpcCoreKit.tKey`, which `Web3AuthMPCCoreKitRN` does not expose.
+
+Do not pass a React Native Core Kit instance to `TssSecurityQuestion`. Use a supported factor
+workflow, such as `getDeviceFactor()` or a securely stored recovery factor, until a native
+Security Question API is available.
 
 ## Additional Helper Methods
 

@@ -176,7 +176,7 @@ const address = (await web3.eth.getAccounts())[0];
 
 To sign a message, you can use the RPC methods supported. For this documentation, we'll showcase how
 you can do a personal sign. To learn more about different RPC methods for signing, you can read our
-[EthereumSigningProvider documentation](/docs/sdk/mpc-core-kit/mpc-core-kit-js/providers/evm).
+[EthereumSigningProvider documentation](/mpc-core-kit-react-native/providers/evm).
 
 ```tsx
 const fromAddress = (await web3.eth.getAccounts())[0];
@@ -231,11 +231,9 @@ To sign the transaction for secp256k1 curve, you can use the `sign` method. The 
 both secp256k1 and ed25519 curve. Using `TssDklsLib` this function will return ECDSA signature and
 using `TssFrostLib`, it will return EDDSA signature.
 
-`sign(data, hashed?, precompute?)` takes a `Buffer`. `hashed` defaults to `false` (the SDK hashes
-with keccak256). secp256k1 returns a 65-byte `r||s||v`. You can warm TSS with
-`precompute_secp256k1()` and pass the result into the next `sign` — it is one-shot.
-
-`setPreSigningHook` can abort signing if the hook returns `{ success: false }`.
+`sign(data, hashed?)` takes a `Buffer`. `hashed` defaults to `false` (the SDK hashes with keccak256).
+secp256k1 returns a 65-byte `r||s||v`. The JavaScript-only `precompute_secp256k1()` and
+`setPreSigningHook` APIs are not available through the React Native facade.
 `makeEthereumSigner(coreKitInstance)` wraps `sign(..., true)` as `{ sign(msgHash), getPublic() }`
 for EVM providers.
 
@@ -244,14 +242,6 @@ const msg = Buffer.from("Welcome to Web3Auth");
 
 // TSS ECDSA (secp256k1): hashes the bytes with keccak256, then signs. Returns 65-byte r||s||v.
 const signature = await coreKitInstance.sign(msg);
-
-// Warm TSS before the user signs to reduce latency. One-shot.
-const pre = await coreKitInstance.precompute_secp256k1();
-await coreKitInstance.sign(msg, false, pre);
-
-coreKitInstance.setPreSigningHook(async ({ data, hashed }) => {
-  return { success: true };
-});
 ```
 
 ## EdDSA Signature
@@ -375,7 +365,7 @@ pubKey with base58 to get the user's EOA address.
 ```tsx
 import { base58 } from "@scure/base";
 
-const address = base58.encode(Uint8Array.from(coreKitInstance.getPubKeyEd25519()));
+const address = base58.encode(Uint8Array.from(await coreKitInstance.getPubKeyEd25519()));
 ```
 
 If you want to verify that the public key is on ed25519 curve, you can create a new `PublicKey`
@@ -462,7 +452,7 @@ ecosystem that supports the ed25519 curve.
 To retrieve the ed25519 publicKey you can use the `getPubKeyEd25519` method in `Web3AuthMPCCoreKit`.
 
 ```tsx
-const pubKey = coreKitInstance.getPubKeyEd25519();
+const pubKey = await coreKitInstance.getPubKeyEd25519();
 ```
 
 #### Signing

@@ -165,7 +165,7 @@ const jwtLoginParams: JWTLoginParams = {
 await coreKitInstance.loginWithJWT(jwtLoginParams);
 
 if (coreKitInstance.status === COREKIT_STATUS.REQUIRED_SHARE) {
-  const hex = await coreKitInstance.getDeviceFactor(); // or mnemonicToKey(...) / securityQuestion.recoverFactor(coreKitInstance, answer)
+  const hex = await coreKitInstance.getDeviceFactor(); // or use a securely stored recovery factor
   if (hex) await coreKitInstance.inputFactorKey(new BN(hex, "hex"));
 }
 ```
@@ -178,7 +178,7 @@ Web3Auth dashboard. If you haven't already created one,
 
 ```tsx
 const jwtLoginParams = {
-  verifier: "YOUR_AGGREGATE_VERIFIER_NAME"
+  verifier: "YOUR_AGGREGATE_VERIFIER_NAME",
   subVerifier: "YOUR_SUB_VERIFIER_NAME",
   verifierId: "USER'S_VERIFIER_ID",
   idToken: "USER'S_ID_TOKEN",
